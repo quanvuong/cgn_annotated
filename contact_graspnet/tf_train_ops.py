@@ -180,6 +180,8 @@ def load_labels_and_losses(grasp_estimator, contact_infos, global_config, train=
             global_config)
 
     total_loss = 0
+
+    # global_config['MODEL']['pred_contact_base'] false
     if global_config['MODEL']['pred_contact_base']:
         total_loss += global_config['OPTIMIZER']['dir_cosine_loss_weight'] * dir_loss
 
@@ -198,6 +200,7 @@ def load_labels_and_losses(grasp_estimator, contact_infos, global_config, train=
         # global_config['OPTIMIZER']['adds_loss_weight']: 10
         total_loss += global_config['OPTIMIZER']['adds_loss_weight'] * adds_loss
 
+    # pred_grasps_adds_gt2pred is false
     if global_config['MODEL']['pred_grasps_adds_gt2pred']:
         # global_config['OPTIMIZER']['adds_gt2pred_loss_weight']: 1
         total_loss += global_config['OPTIMIZER']['adds_gt2pred_loss_weight'] * adds_loss_gt2pred

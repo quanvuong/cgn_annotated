@@ -279,20 +279,35 @@ def get_losses(pointclouds_pl, end_points, dir_labels_pc_cam, offset_labels_pc, 
     sym_gripper_control_points_homog =  tf.concat([sym_gripper_control_points, tf.ones((global_config['OPTIMIZER']['batch_size'], gripper_control_points.shape[1], 1))], axis=2)  # b x 5 x 4
     
     # only use per point pred grasps but not per point gt grasps
+
+    # num_point has value of 2048.
+    # num_point is the number of point in the input pointcloud that CGN computes a grasp for.
     control_points = tf.keras.backend.repeat_elements(tf.expand_dims(gripper_control_points_homog,1), gt_grasps_proj.shape[1], axis=1)  # b x num_point x 5 x 4
     sym_control_points = tf.keras.backend.repeat_elements(tf.expand_dims(sym_gripper_control_points_homog,1), gt_grasps_proj.shape[1], axis=1)  # b x num_point x 5 x 4
     pred_control_points = tf.matmul(control_points, tf.transpose(pred_grasps, perm=[0, 1, 3, 2]))[:,:,:,:3] #  b x num_point x 5 x 3
 
     ### Pred Grasp to GT Grasp ADD-S Loss
+    # when running the code, num_pos_grasp_point is equal to num_point
     gt_control_points = tf.matmul(control_points, tf.transpose(pos_gt_grasps_proj, perm=[0, 1, 3, 2]))[:,:,:,:3] #  b x num_pos_grasp_point x 5 x 3
     sym_gt_control_points = tf.matmul(sym_control_points, tf.transpose(pos_gt_grasps_proj, perm=[0, 1, 3, 2]))[:,:,:,:3] #  b x num_pos_grasp_point x 5 x 3
 
-    squared_add = tf.reduce_sum((tf.expand_dims(pred_control_points,2)-tf.expand_dims(gt_control_points,1))**2, axis=(3,4)) # b x num_point x num_pos_grasp_point x ( 5 x 3)
+    squared_add = tf.reduce_sum(
+        (
+            tf.expand_dims(pred_control_points,2) - tf.expand_dims(gt_control_points,1)
+        )**2, 
+        axis=(3,4)
+    ) # b x num_point x num_pos_grasp_point
     sym_squared_add = tf.reduce_sum((tf.expand_dims(pred_control_points,2)-tf.expand_dims(sym_gt_control_points,1))**2, axis=(3,4)) # b x num_point x num_pos_grasp_point x ( 5 x 3)
 
     # symmetric ADD-S
     neg_squared_adds = -tf.concat([squared_add,sym_squared_add], axis=2) # b x num_point x 2num_pos_grasp_point
     neg_squared_adds_k = tf.math.top_k(neg_squared_adds, k=1, sorted=False)[0] # b x num_point
+
+    # To remove the consideration of symmetry during the control point loss computation:
+    # 1. comment out the two lines right before this comment
+    # 2. uncomment the following line
+    neg_squared_adds_k = tf.math.top_k(squared_add, k=1, sorted=False)[0] # b x num_point
+
     # If any pos grasp exists
     min_adds = tf.minimum(tf.reduce_sum(grasp_success_labels_pc, axis=1, keepdims=True), tf.ones_like(neg_squared_adds_k[:,:,0])) * tf.sqrt(-neg_squared_adds_k[:,:,0])#tf.minimum(tf.sqrt(-neg_squared_adds_k), tf.ones_like(neg_squared_adds_k)) # b x num_point
     adds_loss = tf.reduce_mean(end_points['binary_seg_pred'][:,:,0] * min_adds)
