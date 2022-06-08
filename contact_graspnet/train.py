@@ -36,6 +36,15 @@ def train(global_config, log_dir):
         log_dir {str} -- Checkpoint directory
     """
 
+    # global_config['DATA']['data_path']: 'acronym/'
+    # global_config['DATA']['scene_contacts_path']: 'scene_contacts'
+
+    # Returns a list of scene_contacts, each scene_contacts is a dict of format:
+    # contact_info = {'scene_contact_points':npz['scene_contact_points'],
+    #                 'obj_paths':npz['obj_paths'],
+    #                 'obj_transforms':npz['obj_transforms'],
+    #                 'obj_scales':npz['obj_scales'],
+    #                 'grasp_transforms':npz['grasp_transforms']}
     contact_infos = load_scene_contacts(global_config['DATA']['data_path'],
                                         scene_contacts_path=global_config['DATA']['scene_contacts_path'])
     
@@ -132,8 +141,10 @@ def train_one_epoch(sess, ops, summary_ops, file_writers, pcreader):
         # OpenCV OpenGL conversion
         cam_poses, batch_data = center_pc_convert_cam(cam_poses, batch_data)
         
-        feed_dict = {ops['pointclouds_pl']: batch_data, ops['cam_poses_pl']: cam_poses,
-                     ops['scene_idx_pl']: scene_idx, ops['is_training_pl']: True}
+        feed_dict = {ops['pointclouds_pl']: batch_data, 
+                     ops['cam_poses_pl']: cam_poses,
+                     ops['scene_idx_pl']: scene_idx, 
+                     ops['is_training_pl']: True}
 
         step, summary, _, loss_val, dir_loss, bin_ce_loss, \
         offset_loss, approach_loss, adds_loss, adds_gt2pred_loss, scene_idx = sess.run([ops['step'], summary_ops['merged'], ops['train_op'], ops['loss'], ops['dir_loss'], 

@@ -33,6 +33,12 @@ class GraspEstimator:
         else:
             self._contact_grasp_cfg = cfg
 
+        # self._contact_grasp_cfg['MODEL']['model']
+        # 'contact_graspnet'
+
+        # grasp_estimator._model_func
+        # <module 'contact_graspnet' from '/home/tele_mani_u20/code_proj/cgn/June_4/contact_graspnet/contact_graspnet/contact_graspnet.py'>
+
         self._model_func = importlib.import_module(self._contact_grasp_cfg['MODEL']['model'])
         self._num_input_points = self._contact_grasp_cfg['DATA']['raw_num_points'] if 'raw_num_points' in self._contact_grasp_cfg['DATA'] else self._contact_grasp_cfg['DATA']['num_point']
         
@@ -78,6 +84,8 @@ class GraspEstimator:
                     'offset_bin_pred_vals': offset_bin_pred_vals,
                     'grasp_preds': grasp_preds,
                     'step': step,
+
+                    # 'asymmetric_model':True
                     'end_points': end_points}
 
         self.inference_ops = [self.model_ops['grasp_preds'], self.model_ops['binary_seg_pred'], self.model_ops['pred_points']]

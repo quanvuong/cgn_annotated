@@ -81,18 +81,24 @@ def save_contact_data(pcreader, grasp_path, target_path='mesh_contacts'):
 
     """
 
+    # 'acronym_generate_scene/mesh_contacts'
     target_path = os.path.join(pcreader._root_folder, target_path)
     if not os.path.exists(target_path):
         os.makedirs(target_path)
     
+    # 'acronym_generate_scene/mesh_contacts/Gun_fe62130ce6fcd9b77754fed890b42399_0.015994739372013036.npz'
     contact_dir_path = os.path.join(target_path, os.path.basename(grasp_path.replace('.h5','.npz')))
     if not os.path.exists(os.path.dirname(contact_dir_path)):
         os.makedirs(os.path.dirname(contact_dir_path))
     if os.path.exists(contact_dir_path):
         return
 
-    output_grasps, output_labels, cad_path, cad_scale = read_object_grasp_data_acronym(pcreader._root_folder, grasp_path)
-    pcreader.change_object(cad_path, cad_scale)
+    output_grasps, output_labels, cad_path, cad_scale = \
+        read_object_grasp_data_acronym(pcreader._root_folder, grasp_path)
+
+    # '/home/tele_mani_u20/code_proj/cgn/June_4/contact_graspnet/acronym_generate_scene/meshes/Gun/fe62130ce6fcd9b77754fed890b42399.obj'
+    # 0.0159947394
+    pcreader._renderer._load_object(cad_path, cad_scale)
 
     context = pcreader._renderer._cache[(cad_path,cad_scale)]
     obj_mesh = context['tmesh']

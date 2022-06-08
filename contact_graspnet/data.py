@@ -39,8 +39,9 @@ def load_scene_contacts(dataset_folder, test_split_only=False, num_test=None, sc
     if test_split_only:
         scene_contact_paths = scene_contact_paths[-num_test:]
     contact_infos = []
-    for contact_path in scene_contact_paths:
-        print(contact_path)
+    # For debugging, only load 5
+    for contact_path in scene_contact_paths[:5]:
+        # print(contact_path)
         try:
             npz = np.load(contact_path, allow_pickle=False)
             contact_info = {'scene_contact_points':npz['scene_contact_points'],
@@ -384,7 +385,8 @@ def load_graspnet_data(rgb_image_path):
 
 def center_pc_convert_cam(cam_poses, batch_data):
     """
-    Converts from OpenGL to OpenCV coordinates, computes inverse of camera pose and centers point cloud
+    Converts from OpenGL to OpenCV coordinates, 
+    computes inverse of camera pose and centers point cloud
     
     :param cam_poses: (bx4x4) Camera poses in OpenGL format
     :param batch_data: (bxNx3) point clouds 
@@ -605,15 +607,46 @@ class PointCloudReader:
             scene_idx = np.random.randint(0,self._num_train_samples)
 
         obj_paths = [os.path.join(self._root_folder, p) for p in self._scene_obj_paths[scene_idx]]
+        
+        # Remove category name from fname 
+        obj_paths = [
+            self._root_folder + 'meshes/' + mesh_fname.split('/')[-1] for mesh_fname in obj_paths
+        ]
+
         mesh_scales = self._scene_obj_scales[scene_idx]
         obj_trafos = self._scene_obj_transforms[scene_idx]
 
-        self.change_scene(obj_paths, mesh_scales, obj_trafos, visualize=False)
+        # Remove data for missing meshes 
+        a, b, c = [], [], []
+
+        for op, ms, tf in zip(
+            obj_paths, mesh_scales, obj_trafos
+        ):
+
+            if not os.path.exists(op):
+                print('Does not exist', op)
+                continue
+
+            a.append(op)
+            b.append(ms)
+            c.append(tf)
+
+        obj_paths = a 
+        mesh_scales = b 
+        obj_trafos = c
+
+        self.change_scene(obj_paths, mesh_scales, obj_trafos, 
+            # visualize=True, this gives error that _visualizer does not exist
+            visualize=False
+        )
 
         batch_segmap, batch_obj_pcs = [], []
-        for i in range(self._batch_size):            
+        for i in range(self._batch_size):         
+
             # 0.005s
-            pc_cam, pc_normals, camera_pose, depth = self.render_random_scene(estimate_normals = self._estimate_normals)
+            # camera_pose is the pose of the camera used to capture the depth and pc
+            pc_cam, pc_normals, camera_pose, depth = self.render_random_scene(
+                estimate_normals = self._estimate_normals)
 
             if return_segmap:
                 segmap, _, obj_pcs = self._renderer.render_labels(depth, obj_paths, mesh_scales, render_pc=True)
@@ -621,8 +654,10 @@ class PointCloudReader:
                 batch_segmap.append(segmap)
 
             batch_data[i,:,0:3] = pc_cam[:,:3]
+
             if self._estimate_normals:
                 batch_data[i,:,3:6] = pc_normals[:,:3]
+
             cam_poses[i,:,:] = camera_pose
             
         if save:
@@ -660,7 +695,10 @@ class PointCloudReader:
         depth = self._augment_depth(depth)
         
         pc = self._renderer._to_pointcloud(depth)
-        pc = regularize_pc_point_count(pc, self._raw_num_points, use_farthest_point=self._use_farthest_point)
+        pc = regularize_pc_point_count(
+            pc, 
+            self._raw_num_points, 
+            use_farthest_point=self._use_farthest_point)
         pc = self._augment_pc(pc)
         
         pc_normals = estimate_normals_cam_from_pc(pc[:,:3], raw_num_points=self._raw_num_points) if estimate_normals else []

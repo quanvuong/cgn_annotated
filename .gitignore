@@ -4,3 +4,7 @@ checkpoints/*
 **/*.pyc
 **/__pycache__
 .vscode
+
+acronym/
+acronym_generate_scene/
+

@@ -31,12 +31,18 @@ def load_contacts(root_folder, data_splits, splits=['train'], min_pos_contacts=1
     for category_paths in data_splits.values():
         for split in splits:
             for grasp_path in category_paths[split]:
+
                 contact_path = os.path.join(root_folder, 'mesh_contacts', grasp_path.replace('.h5','.npz'))
+
                 if os.path.exists(contact_path):
+
                     npz = np.load(contact_path)
+
                     if 'contact_points' in npz:
+
                         all_contact_suc = npz['successful'].reshape(-1)
                         pos_idcs = np.where(all_contact_suc>0)[0]
+                        
                         if len(pos_idcs) > min_pos_contacts:
                             contact_infos[grasp_path] = {}
                             contact_infos[grasp_path]['successful'] = npz['successful']
@@ -115,7 +121,14 @@ class TableScene(Scene):
                 if random_grasp_path in self.contact_infos:
                     break
         
-        obj_mesh = load_mesh(os.path.join(self.root_folder, 'grasps', random_grasp_path), self.root_folder)
+        # import ipdb 
+        # ipdb.set_trace()
+
+        obj_mesh = \
+            load_mesh(
+                os.path.join(self.root_folder, 'grasps', random_grasp_path), 
+                self.root_folder
+            )
         
         mesh_mean =  np.mean(obj_mesh.vertices, 0, keepdims=True)
         obj_mesh.vertices -= mesh_mean
@@ -281,6 +294,7 @@ class TableScene(Scene):
         contact_info['scene_contact_points'] = scene_filtered_contacts
         contact_info['obj_grasp_idcs'] = np.array(obj_grasp_idcs)
         output_path = os.path.join(output_dir, '{:06d}.npz'.format(self._scene_count))
+
         while os.path.exists(output_path):
             self._scene_count += 1
             output_path = os.path.join(output_dir, '{:06d}.npz'.format(self._scene_count))
@@ -420,9 +434,14 @@ class TableScene(Scene):
         grasp_count = 0
         
         for obj_transform, grasp_path in zip(obj_transforms, grasp_paths):
+
             grasps, contacts = self.load_suc_obj_contact_grasps(grasp_path)
-            transformed_grasps, transformed_contacts = self._transform_grasps(grasps, contacts, obj_transform)
-            filtered_grasps, filtered_contacts = self._filter_colliding_grasps(transformed_grasps, transformed_contacts)
+
+            transformed_grasps, transformed_contacts = self._transform_grasps(
+                grasps, contacts, obj_transform)
+
+            filtered_grasps, filtered_contacts = \
+                self._filter_colliding_grasps(transformed_grasps, transformed_contacts)
             
             scene_filtered_grasps.append(filtered_grasps)
             scene_filtered_contacts.append(filtered_contacts)

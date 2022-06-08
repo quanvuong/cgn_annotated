@@ -1,0 +1,3 @@
+/home/tele_mani_u20/code_proj/cgn/June_4/Manifold/build/manifold acronym_generate_scene/models-OBJ/models/fe62130ce6fcd9b77754fed890b42399.obj acronym_generate_scene/meshes/Gun/fe62130ce6fcd9b77754fed890b42399.temp.watertight.obj -s
+
+/home/tele_mani_u20/code_proj/cgn/June_4/Manifold/build/simplify -i acronym_generate_scene/meshes/Gun/fe62130ce6fcd9b77754fed890b42399.temp.watertight.obj -o acronym_generate_scene/meshes/Gun/fe62130ce6fcd9b77754fed890b42399.obj -m -r 0.02

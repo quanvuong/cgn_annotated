@@ -77,19 +77,46 @@ def load_labels_and_losses(grasp_estimator, contact_infos, global_config, train=
         dict[str:tf.variables] -- tf references to labels and losses
     """
 
+    # defined in build_network
     end_points = grasp_estimator.model_ops['end_points']
+
+    # <tf.Tensor 'layer1/GatherPoint:0' shape=(3, 2048, 3) dtype=float32>
+    # These are probably the points sampled by PointNet++
     target_point_cloud = end_points['pred_points']
+
+    # tf.placeholder(tf.int32, ())
     scene_idx_pl = grasp_estimator.placeholders['scene_idx_pl']
+
+    # tf.placeholder(tf.float32, shape=(batch_size, 4, 4))
     cam_poses_pl = grasp_estimator.placeholders['cam_poses_pl']
 
-    tf_pos_contact_points, tf_pos_contact_dirs, tf_pos_contact_approaches, \
-    tf_pos_finger_diffs, tf_scene_idcs = load_contact_grasps(contact_infos, global_config['DATA'])
+    # 
+    tf_pos_contact_points, \
+        tf_pos_contact_dirs, \
+            tf_pos_contact_approaches, \
+                tf_pos_finger_diffs, \
+                    tf_scene_idcs = load_contact_grasps(\
+                        contact_infos, global_config['DATA'])
 
     iterator = None
     idx = scene_idx_pl
     if train:
-        grasp_dataset = tf.data.Dataset.from_tensor_slices((tf_pos_contact_points, tf_pos_contact_dirs, \
-                                                    tf_pos_contact_approaches, tf_pos_finger_diffs, tf_scene_idcs))
+        grasp_dataset = tf.data.Dataset.from_tensor_slices((
+
+            # (5, 16000, 3)
+            tf_pos_contact_points, 
+
+            # (5, 16000, 3)
+            tf_pos_contact_dirs, 
+
+            # (5, 16000, 3)
+            tf_pos_contact_approaches, 
+
+            # (5, 16000)
+            tf_pos_finger_diffs, 
+
+            # (5, )
+            tf_scene_idcs))
 
         grasp_dataset = grasp_dataset.repeat()
         grasp_dataset = grasp_dataset.batch(1)
@@ -99,14 +126,30 @@ def load_labels_and_losses(grasp_estimator, contact_infos, global_config, train=
         iterator = grasp_dataset.make_initializable_iterator()
         next_element = iterator.get_next()
 
-        tf_pos_contact_points_idx, tf_pos_contact_dirs_idx, \
-        tf_pos_contact_approaches_idx, tf_pos_finger_diffs_idx, tf_scene_idcs = next_element
+        # Shape of these are the same as above
+        # but the first dimension is now None
+        # instead of 5.
+        tf_pos_contact_points_idx, \
+            tf_pos_contact_dirs_idx, \
+                tf_pos_contact_approaches_idx, \
+                    tf_pos_finger_diffs_idx, \
+                        tf_scene_idcs = next_element
         idx = 0
         
     # Get labels
-    dir_labels_pc_cam, offset_labels_pc, \
-    grasp_suc_labels_pc, approach_labels_pc = grasp_estimator._model_func.compute_labels(tf_pos_contact_points_idx[idx], tf_pos_contact_dirs_idx[idx], tf_pos_contact_approaches_idx[idx], 
-                                                                                            tf_pos_finger_diffs_idx[idx], target_point_cloud, cam_poses_pl, global_config)
+    dir_labels_pc_cam, \
+        offset_labels_pc, \
+            grasp_suc_labels_pc, \
+                approach_labels_pc = \
+                    grasp_estimator._model_func.compute_labels(
+
+                        # indexing by 0 remove the dimension with None
+                        tf_pos_contact_points_idx[idx], 
+                        tf_pos_contact_dirs_idx[idx], 
+                        tf_pos_contact_approaches_idx[idx], 
+                        tf_pos_finger_diffs_idx[idx], 
+                        target_point_cloud, 
+                        cam_poses_pl, global_config)
 
     
     if global_config['MODEL']['bin_offsets']:
@@ -115,22 +158,48 @@ def load_labels_and_losses(grasp_estimator, contact_infos, global_config, train=
         offset_labels_pc = grasp_estimator._model_func.multi_bin_labels(offset_labels_pc, global_config['DATA']['labels']['offset_bins'])
         
     # Get losses 
-    dir_loss, bin_ce_loss, offset_loss, approach_loss, adds_loss, adds_loss_gt2pred = grasp_estimator._model_func.get_losses(target_point_cloud, end_points, dir_labels_pc_cam, 
-                                                                                                                             offset_labels_pc, grasp_suc_labels_pc, approach_labels_pc, 
-                                                                                                                             global_config)
+
+    # bin_ce is l_bce, k
+    # bin_ce_loss seems to be the contact grasp success prediction, evaluated at all
+    # output points (begining of section D in paper).
+
+    # adds_loss is l_add-s
+    # adds_loss is eq 8
+
+    # offset_loss is l_width
+
+    dir_loss, bin_ce_loss, offset_loss, approach_loss, adds_loss, adds_loss_gt2pred = \
+        grasp_estimator._model_func.get_losses(\
+            target_point_cloud, 
+            end_points, 
+            
+            dir_labels_pc_cam, 
+            offset_labels_pc, 
+            grasp_suc_labels_pc, 
+            approach_labels_pc, 
+            global_config)
 
     total_loss = 0
     if global_config['MODEL']['pred_contact_base']:
         total_loss += global_config['OPTIMIZER']['dir_cosine_loss_weight'] * dir_loss
+
     if global_config['MODEL']['pred_contact_success']:
+        # global_config['OPTIMIZER']['score_ce_loss_weight']: 1
         total_loss += global_config['OPTIMIZER']['score_ce_loss_weight'] * bin_ce_loss
+
     if global_config['MODEL']['pred_contact_offset']:
+        # global_config['OPTIMIZER']['offset_loss_weight']: 1
         total_loss += global_config['OPTIMIZER']['offset_loss_weight'] * offset_loss
+
     if global_config['MODEL']['pred_contact_approach']:
         total_loss += global_config['OPTIMIZER']['approach_cosine_loss_weight'] * approach_loss
+
     if global_config['MODEL']['pred_grasps_adds']:
+        # global_config['OPTIMIZER']['adds_loss_weight']: 10
         total_loss += global_config['OPTIMIZER']['adds_loss_weight'] * adds_loss
+
     if global_config['MODEL']['pred_grasps_adds_gt2pred']:
+        # global_config['OPTIMIZER']['adds_gt2pred_loss_weight']: 1
         total_loss += global_config['OPTIMIZER']['adds_gt2pred_loss_weight'] * adds_loss_gt2pred
 
     tf_bin_vals = grasp_estimator._model_func.get_bin_vals(global_config)
@@ -202,7 +271,11 @@ def load_contact_grasps(contact_list, data_config):
         all_obj_paths, all_obj_transforms] -- tf.constants with per scene grasp data, object paths/transforms in scene
     """
 
-    num_pos_contacts = data_config['labels']['num_pos_contacts'] 
+    # contact_list is the contact info loaded by load_scene_contacts
+
+    # 8000
+    # pos probably stands for positive
+    num_pos_contacts = data_config['labels']['num_pos_contacts']
 
     pos_contact_points = []
     pos_contact_dirs = []
@@ -210,14 +283,33 @@ def load_contact_grasps(contact_list, data_config):
     pos_approach_dirs = []
 
     for i,c in enumerate(contact_list):
-        contact_directions_01 = c['scene_contact_points'][:,0,:] - c['scene_contact_points'][:,1,:]
+
+        # The 0 and 1 indexing here is indexing the contact point.
+        # There should be two contact points
+        # c['scene_contact_points'].shape: (2428, 2, 3)
+        contact_directions_01 = \
+            c['scene_contact_points'][:,0,:] - c['scene_contact_points'][:,1,:]
+
         all_contact_points = c['scene_contact_points'].reshape(-1,3)
-        all_finger_diffs = np.maximum(np.linalg.norm(contact_directions_01,axis=1), np.finfo(np.float32).eps)
-        all_contact_directions = np.empty((contact_directions_01.shape[0]*2, contact_directions_01.shape[1],))
+        
+        all_finger_diffs = \
+            np.maximum(
+                np.linalg.norm(contact_directions_01,axis=1), 
+                np.finfo(np.float32).eps
+            )
+
+        # (4856, 3)
+        all_contact_directions = \
+            np.empty((contact_directions_01.shape[0]*2, contact_directions_01.shape[1],))
+
         all_contact_directions[0::2] = -contact_directions_01 / all_finger_diffs[:,np.newaxis]
         all_contact_directions[1::2] = contact_directions_01 / all_finger_diffs[:,np.newaxis]
+
         all_contact_suc = np.ones_like(all_contact_points[:,0])
         all_grasp_transform = c['grasp_transforms'].reshape(-1,4,4)
+
+        # just the 3x1 t in 4x4 T
+        # (2428, 3)
         all_approach_directions = all_grasp_transform[:,:3,2]
 
         pos_idcs = np.where(all_contact_suc>0)[0]
@@ -230,13 +322,25 @@ def load_contact_grasps(contact_list, data_config):
         all_pos_contact_dirs = all_contact_directions[pos_idcs]
         all_pos_approach_dirs = all_approach_directions[pos_idcs//2]
         
+        # TODO: why is there a *2 here?
         # Use all positive contacts then mesh_utils with replacement
         if num_pos_contacts > len(all_pos_contact_points)/2:
             pos_sampled_contact_idcs = np.arange(len(all_pos_contact_points))
-            pos_sampled_contact_idcs_replacement = np.random.choice(np.arange(len(all_pos_contact_points)), num_pos_contacts*2 - len(all_pos_contact_points) , replace=True) 
-            pos_sampled_contact_idcs= np.hstack((pos_sampled_contact_idcs, pos_sampled_contact_idcs_replacement))
+            pos_sampled_contact_idcs_replacement = \
+                np.random.choice(
+                    np.arange(len(all_pos_contact_points)), 
+                    num_pos_contacts*2 - len(all_pos_contact_points), 
+                    replace=True
+                ) 
+            pos_sampled_contact_idcs = \
+                np.hstack(
+                    (pos_sampled_contact_idcs, pos_sampled_contact_idcs_replacement)
+                )
         else:
-            pos_sampled_contact_idcs = np.random.choice(np.arange(len(all_pos_contact_points)), num_pos_contacts*2, replace=False)
+            pos_sampled_contact_idcs = np.random.choice(
+                np.arange(len(all_pos_contact_points)), 
+                num_pos_contacts*2, 
+                replace=False)
 
         pos_contact_points.append(all_pos_contact_points[pos_sampled_contact_idcs,:])
         pos_contact_dirs.append(all_pos_contact_dirs[pos_sampled_contact_idcs,:])
@@ -248,9 +352,12 @@ def load_contact_grasps(contact_list, data_config):
 
     with tf.device(device):
         tf_scene_idcs = tf.constant(np.arange(0,len(pos_contact_points)), tf.int32)
+
         tf_pos_contact_points = tf.constant(np.array(pos_contact_points), tf.float32)
         tf_pos_contact_dirs =  tf.math.l2_normalize(tf.constant(np.array(pos_contact_dirs), tf.float32),axis=2)
+
         tf_pos_finger_diffs = tf.constant(np.array(pos_finger_diffs), tf.float32)
-        tf_pos_contact_approaches =  tf.math.l2_normalize(tf.constant(np.array(pos_approach_dirs), tf.float32),axis=2)
+        tf_pos_contact_approaches =  tf.math.l2_normalize(
+            tf.constant(np.array(pos_approach_dirs), tf.float32), axis=2)
 
     return tf_pos_contact_points, tf_pos_contact_dirs, tf_pos_contact_approaches, tf_pos_finger_diffs, tf_scene_idcs
