@@ -253,7 +253,7 @@ def build_train_op(total_loss, step, global_config):
     else:
         optimizer = tf.train.GradientDescentOptimizer(learning_rate)
 
-    train_op = optimizer.minimize(total_loss, global_step=step, var_list=tf.global_variables())
+    train_op = optimizer.minimize(total_loss, global_step=step, var_list=tf.trainable_variables())
     if TF2:
         update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
         train_op = tf.group([train_op, update_ops])
