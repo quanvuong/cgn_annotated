@@ -647,6 +647,10 @@ class PointCloudReader:
             pc_cam, pc_normals, camera_pose, depth = self.render_random_scene(
                 estimate_normals = self._estimate_normals)
 
+            # To visualize the pointcloud used during training, uncomment
+            # import trimesh
+            # trimesh.Scene(trimesh.points.PointCloud(pc_cam)).show()
+
             if return_segmap:
                 segmap, _, obj_pcs = self._renderer.render_labels(depth, obj_paths, mesh_scales, render_pc=True)
                 batch_obj_pcs.append(obj_pcs)
