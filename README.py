@@ -37,6 +37,9 @@
 # First, copy the checkpoint of the finetuned model and replaced the checkpoint of the pretrained cgn model
 # which should be at <path_to_mobile_pnp_repo>/src/contact_graspnet/checkpoints 
 
+# Checkout the branch June14_evaluate_CGN_finetuned_on_recon_test_scene_8_implicit_rep
+# inside mobile_pnp repo 
+
 # Then run inference to obtain grasp prediction with contact_graspnet/inference.py,
 # and run contact_graspnet_policy.py to evaluate the grasp prediction.
 
