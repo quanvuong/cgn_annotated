@@ -607,32 +607,8 @@ class PointCloudReader:
 
         obj_paths = [os.path.join(self._root_folder, p) for p in self._scene_obj_paths[scene_idx]]
         
-        # Remove category name from fname 
-        obj_paths = [
-            self._root_folder + 'meshes/' + mesh_fname.split('/')[-1] for mesh_fname in obj_paths
-        ]
-
         mesh_scales = self._scene_obj_scales[scene_idx]
         obj_trafos = self._scene_obj_transforms[scene_idx]
-
-        # Remove data for missing meshes 
-        a, b, c = [], [], []
-
-        for op, ms, tf in zip(
-            obj_paths, mesh_scales, obj_trafos
-        ):
-
-            if not os.path.exists(op):
-                print('Does not exist', op)
-                continue
-
-            a.append(op)
-            b.append(ms)
-            c.append(tf)
-
-        obj_paths = a 
-        mesh_scales = b 
-        obj_trafos = c
 
         self.change_scene(obj_paths, mesh_scales, obj_trafos, 
             # visualize=True, this gives error that _visualizer does not exist
