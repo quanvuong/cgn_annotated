@@ -70,8 +70,9 @@ def train(global_config, log_dir):
         num_test_samples = num_test_samples,
         use_farthest_point = global_config['DATA']['use_farthest_point'],
         intrinsics=global_config['DATA']['intrinsics'],
-        elevation=global_config['DATA']['view_sphere']['elevation'],
-        distance_range=global_config['DATA']['view_sphere']['distance_range'],
+        # The default value in the init fn is equal to default value in yaml file
+        # elevation=global_config['DATA']['view_sphere']['elevation'],
+        # distance_range=global_config['DATA']['view_sphere']['distance_range'],
         pc_augm_config=global_config['DATA']['pc_augm'],
         depth_augm_config=global_config['DATA']['depth_augm']
     )
