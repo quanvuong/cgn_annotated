@@ -49,8 +49,8 @@ def load_scene_contacts(dataset_folder, test_split_only=False, num_test=None, sc
                             'obj_scales':npz['obj_scales'],
                             'grasp_transforms':npz['grasp_transforms']}
             contact_infos.append(contact_info)
-        except:
-            print('corrupt, ignoring..')
+        except Exception as e:
+            assert False, e
     return contact_infos
 
 def preprocess_pc_for_inference(input_pc, num_point, pc_mean=None, return_mean=False, use_farthest_point=False, convert_to_internal_coords=False):
