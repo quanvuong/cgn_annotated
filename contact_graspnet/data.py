@@ -39,8 +39,7 @@ def load_scene_contacts(dataset_folder, test_split_only=False, num_test=None, sc
     if test_split_only:
         scene_contact_paths = scene_contact_paths[-num_test:]
     contact_infos = []
-    # For debugging, only load 5
-    for contact_path in scene_contact_paths[:5]:
+    for contact_path in scene_contact_paths:
         # print(contact_path)
         try:
             npz = np.load(contact_path, allow_pickle=False)
