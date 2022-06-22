@@ -34,11 +34,15 @@
 
 # 5. Run inference on the fine-tuned model and evaluate the grasps 
 
-# First, copy the checkpoint of the finetuned model and replaced the checkpoint of the pretrained cgn model
-# which should be at <path_to_mobile_pnp_repo>/src/contact_graspnet/checkpoints 
+# To run inference using the fine-tuned model, perform the following step:
+  # First, copy the checkpoint of the finetuned model and replaced the checkpoint of the pretrained cgn model
+  # which should be at <path_to_mobile_pnp_repo>/src/contact_graspnet/checkpoints 
 
-# Checkout the branch June14_evaluate_CGN_finetuned_on_recon_test_scene_8_implicit_rep
-# inside mobile_pnp repo 
+  # Checkout the branch June14_evaluate_CGN_finetuned_on_recon_test_scene_8_implicit_rep
+  # inside mobile_pnp repo 
+# Otherwise, to run inference using the pretrained cgn model released by NVIDIA, no further step is needed.
+
+# If the point cloud and segmentation are not saved to disk yet (such as the file eval_data/ArmGraspObjectClutterTest_8-v0.npy used below), run the code cell titled `Save point cloud from scenes` in the following notebook (https://github.dev/KolinGuo/mobile_pnp/blob/June14_evaluate_CGN_finetuned_on_recon_test_scene_8_implicit_rep/src/notebooks/Contact_GraspNet.ipynb)
 
 # Then run inference to obtain grasp prediction with contact_graspnet/inference.py,
 # and run contact_graspnet_policy.py to evaluate the grasp prediction.
