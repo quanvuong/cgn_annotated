@@ -1,0 +1,66 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: robin-cgn-fine-tuning-demo # Replace with something like "${USER_NAME}-{EXP_NAME}"
+  namespace: ucsd-haosulab
+  labels:
+    jobgroup: robin-cgn-fine-tuning
+spec:
+  ttlSecondsAfterFinished: 600 # Wait one day to delete completed jobs
+  template:
+    metadata:
+      name: robin-cgn-fine-tuning
+      labels:
+        nautilus.io/sim: "true"
+        jobgroup: robin-cgn-fine-tuning
+    spec:
+      containers:
+        - name: container
+          image: robinwangucsd/cgn_fine_tuning:0.0
+          # imagePullPolicy: Always
+          command:
+            - "bash"
+            - "-c"
+          args:
+            - >-
+              cd /robin-fast/cgn_annotated
+              && mkdir -p demo_log
+              && /miniconda/envs/contact_graspnet_env/bin/python contact_graspnet/train.py \
+              --ckpt_dir checkpoints/scene_test_2048_bs3_hor_sigma_001 --data_path reconstructed/ \
+              --arg_configs DATA.num_test_scenes:2 OPTIMIZER.batch_size:2 OPTIMIZER.max_epoch:73001 DATA.scene_contacts_path:scene_contacts \
+              --early-stopping-first-round True
+              |& tee demo_log/terminal.log
+            # For multiple commands, concatenate them with &&
+          resources:
+            requests:
+              cpu: "8"
+              memory: "12Gi"
+              nvidia.com/gpu: "1"
+            limits:
+              cpu: "8"
+              memory: "20Gi"
+              nvidia.com/gpu: "1"
+          volumeMounts:
+            - name: dshm
+              mountPath: /dev/shm
+            - name: cephfs
+              mountPath: /cephfs
+            - name: quan-fast
+              mountPath: /quan-fast
+            - name: robin-fast
+              mountPath: /robin-fast
+      volumes:
+        - name: dshm # shared memory, required for the multi-worker dataloader
+          emptyDir:
+            medium: Memory
+        - name: cephfs
+          persistentVolumeClaim:
+            claimName: haosulab-cephfs
+        - name: quan-fast
+          persistentVolumeClaim:
+            claimName: quan-fast-vol
+        - name: robin-fast
+          persistentVolumeClaim:
+            claimName: luw015-fast-vol
+      restartPolicy: Never
+  backoffLimit: 2 # The number of attempts to restart after crash
