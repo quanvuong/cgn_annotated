@@ -48,3 +48,14 @@ def get_path_to_recon_mesh(
     test_env_name = recon_env_name.replace('Reconstruction', 'Test')
 
     return str(mobile_pnp_dir / 'current_reconstruction' / test_env_name / obj_name / 'model_vhacd.obj')
+
+
+def get_local_path_to_recon_mesh(
+    recon_env_name, 
+    obj_name,
+    mobile_pnp_dir
+):
+
+    test_env_name = recon_env_name.replace('Reconstruction', 'Test')
+
+    return str(Path('current_reconstruction') / test_env_name / obj_name / 'model_vhacd.obj')
