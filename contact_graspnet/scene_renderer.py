@@ -14,6 +14,11 @@ import trimesh.transformations as tra
 
 from mesh_utils import Object
 
+# added for cgn_fine_tuning docker image by RobinWangSD (23rd June 2022)
+# according to https://github.com/nkolot/SPIN/issues/41#:~:text=Jan%2017%2C%202020-,As%20an%20alternative%20to%20SPIN%20virtual_env%20one%20can%20use%20VIBE%20virtual_env%3A,-https%3A//github.com
+os.environ['PYOPENGL_PLATFORM'] = 'egl'
+
+
 class SceneRenderer:
     def __init__(self, intrinsics=None, fov=np.pi / 6, caching=True, viewing_mode=False):
         """Renders depth with given intrinsics during training.
