@@ -19,7 +19,12 @@ import tensorflow.compat.v1 as tf
 tf.disable_eager_execution()
 TF2 = True
 physical_devices = tf.config.experimental.list_physical_devices('GPU')
-tf.config.experimental.set_memory_growth(physical_devices[0], True)
+
+### Modified 
+# Original code does not allow training on multiple GPUs
+#tf.config.experimental.set_memory_growth(physical_devices[0], True)
+for i in range(len(physical_devices)):
+    tf.config.experimental.set_memory_growth(physical_devices[i], True)
     
 import config_utils
 from data import PointCloudReader, load_scene_contacts, center_pc_convert_cam
@@ -27,7 +32,7 @@ from summaries import build_summary_ops, build_file_writers
 from tf_train_ops import load_labels_and_losses, build_train_op
 from contact_grasp_estimator import GraspEstimator
 
-def train(global_config, log_dir):
+def train(global_config, log_dir, early_stopping_first_round=False):
     """
     Trains Contact-GraspNet
 
@@ -111,6 +116,15 @@ def train(global_config, log_dir):
 
     ## define: epoch = arbitrary number of views of every training scene
     cur_epoch = sess.run(ops['step']) // num_train_samples
+
+    if early_stopping_first_round:
+        ### parameters for early stopping 
+        patience_early_stopping = 10
+        j_early_stopping = 0
+        best_training_epoch = 0
+        lowest_loss = np.inf
+
+
     for epoch in range(cur_epoch, global_config['OPTIMIZER']['max_epoch']):
         log_string('**** EPOCH %03d ****' % (epoch))
         
@@ -119,14 +133,33 @@ def train(global_config, log_dir):
         step = train_one_epoch(sess, ops, summary_ops, file_writers, pcreader)
         log_string('trained epoch {} in: {}'.format(epoch, time.time()-epoch_time))
 
-        # Save the variables to disk.
-        save_path = saver.save(sess, os.path.join(log_dir, "model.ckpt"), global_step=step, write_meta_graph=False)
-        log_string("Model saved in file: %s" % save_path)
+        if not early_stopping_first_round:
+            # Save the variables to disk when not in fine-tuning first stage.
+            save_path = saver.save(sess, os.path.join(log_dir, "model.ckpt"), global_step=step, write_meta_graph=False)
+            log_string("Model saved in file: %s" % save_path)
 
         if num_test_samples > 0:
             eval_time = time.time()
-            eval_validation_scenes(sess, ops, summary_ops, file_writers, pcreader)
+            _, eval_loss = eval_validation_scenes(sess, ops, summary_ops, file_writers, pcreader)
             log_string('evaluation time: {}'.format(time.time()-eval_time))
+            if early_stopping_first_round:
+                if eval_loss < lowest_loss:
+                    # reset patience count
+                    j_early_stopping = 0
+                    # Save the variables to disk when not in fine-tuning first stage.
+                    # save_path = saver.save(sess, os.path.join(log_dir, "model.ckpt"), global_step=step, write_meta_graph=False)
+                    # log_string("Model saved in file: %s" % save_path)
+                    best_training_epoch = epoch
+                    lowest_loss = eval_loss
+                else:
+                    j_early_stopping += 1
+
+                if j_early_stopping > patience_early_stopping:
+                    log_string(f"************** \n Best fine-tuning epoch: {best_training_epoch}, \n Pre-trained model already trained {cur_epoch}, \n" + \
+                     f" Suggested fine-tuning epoch for second round is {np.ceil((best_training_epoch-cur_epoch)*((num_train_samples + num_test_samples)/num_train_samples))+cur_epoch}")
+                    break
+                    
+
 
 def train_one_epoch(sess, ops, summary_ops, file_writers, pcreader):
     """ ops: dict mapping from string to tf ops """
@@ -194,7 +227,7 @@ def eval_validation_scenes(sess, ops, summary_ops, file_writers, pcreader, max_e
     f = tuple(np.mean(loss_log, axis=0))
     log_string('mean val loss: %f \t mean val dir loss: %f \t mean val ce loss: %f \t mean off loss: %f \t mean app loss: %f \t mean adds loss: %f \t mean adds_gt2pred loss: %f' % f)
 
-    return step
+    return step, loss_val
 
 if __name__ == "__main__":
     
@@ -204,6 +237,7 @@ if __name__ == "__main__":
     parser.add_argument('--max_epoch', type=int, default=None, help='Epochs to run')
     parser.add_argument('--batch_size', type=int, default=None, help='Batch Size during training')
     parser.add_argument('--arg_configs', nargs="*", type=str, default=[], help='overwrite config parameters')
+    parser.add_argument('--early-stopping-first-round', type=bool, default=False, help="specify fine-tunning stage: True - used to deciding number of epochs, False - actual fine-tuning")
     FLAGS = parser.parse_args()
 
     ckpt_dir = FLAGS.ckpt_dir
@@ -229,6 +263,6 @@ if __name__ == "__main__":
     log_string(str(global_config))
     log_string('pid: %s'%(str(os.getpid())))
 
-    train(global_config, ckpt_dir)
+    train(global_config, ckpt_dir, FLAGS.early_stopping_first_round)
 
     LOG_FOUT.close()
