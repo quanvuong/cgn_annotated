@@ -1,0 +1,54 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: quan-cgn-fine-tuning-demo # Replace with something like "${USER_NAME}-{EXP_NAME}"
+  namespace: ucsd-haosulab
+  labels:
+    jobgroup: quan-cgn-fine-tuning
+spec:
+  ttlSecondsAfterFinished: 600 # Wait one day to delete completed jobs
+  template:
+    metadata:
+      name: quan-cgn-fine-tuning
+      labels:
+        nautilus.io/sim: "true"
+        jobgroup: quan-cgn-fine-tuning
+    spec:
+      containers:
+        - name: container
+          image: robinwangucsd/cgn_fine_tuning:0.0
+          # imagePullPolicy: Always
+          args: ["sleep", "infinity"]
+          resources:
+            requests:
+              cpu: "8"
+              memory: "12Gi"
+              nvidia.com/gpu: "1"
+            limits:
+              cpu: "8"
+              memory: "20Gi"
+              nvidia.com/gpu: "1"
+          volumeMounts:
+            - name: dshm
+              mountPath: /dev/shm
+            - name: cephfs
+              mountPath: /cephfs
+            - name: quan-fast-vol
+              mountPath: /quan-fast-vol
+            - name: robin-fast
+              mountPath: /robin-fast
+      volumes:
+        - name: dshm # shared memory, required for the multi-worker dataloader
+          emptyDir:
+            medium: Memory
+        - name: cephfs
+          persistentVolumeClaim:
+            claimName: haosulab-cephfs
+        - name: quan-fast-vol
+          persistentVolumeClaim:
+            claimName: quan-fast-vol
+        - name: robin-fast
+          persistentVolumeClaim:
+            claimName: luw015-fast-vol
+      restartPolicy: Never
+  backoffLimit: 2 # The number of attempts to restart after crash
