@@ -13,7 +13,7 @@ def load_label_from_bfs(
     # the keys are the object names in the env_name
     # the values are the labels generated and saved by the file grasp_label_generation_with_brute_force_sampling_antipodal
 
-    labels_for_env = mobile_pnp_dir / f'src/ArmGraspObjectClutterReconstruction-v0_antipodal_grasp_generation/ArmGraspObjectClutterReconstruction-v0_Ditto_grasp_labels_202206151746/{recon_env_name}_eval_results'
+    labels_for_env = mobile_pnp_dir / f'ArmGraspObjectClutterReconstruction-v0_per_obj_grasp_label_generation/{recon_env_name}_eval_results'
     # mobile_pnp_dir / f'src/ArmGraspObjectClutterReconstruction-v0_antipodal_grasp_generation/{recon_env_name}_eval_results'
 
     list_obj_name = os.listdir(labels_for_env)
